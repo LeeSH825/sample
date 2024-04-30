@@ -1,0 +1,54 @@
+전체 작동 flow:
+	초기화:
+		DRAM에서 값 받아와서 차례대로 끼워넣음:
+			Weight: 
+				PARAM으로 설정, SYNAPSE로 도착지 설정
+				Targer Neuron Address 설정
+				Data:
+				if MD 노드일 경우:
+					Weight 전체 다 가짐
+				else (MD 노드가 아닐 경우):
+					weight 중 MSB를 채워넣고, LSB는 랜덤 생성함 (랜덤 생성은 Controller에서)
+				
+			Block: (Forward/Backward Propagation, MD Node)
+				Controller의 Table에 채워넣음
+			Paremeter: (Threshold 등)
+	초기 작동:
+		우선은 PS에서 Spike time, Spike 해야할 Neuron들 정보 계산해서 DRAM으로 전달
+		PL에서는 그거 받아서 뉴런에 전달암
+	작동:
+		if 뉴런으로 Spike Time이 들어옴:
+			if Forward Propatation:
+				뉴런: N번 뉴런이 해당 시간에 Spike 했음을 저장함 (최대 3번까지)
+				그리고 Potential 계산 모듈에서 Potential Value 업데이트 함
+				Learning Module:
+					${Learning Algorithm}에 맞춰 Synaptic Weight를 업데이트함 // ${Learning Algorithm}: 현재 -> STDP Learning
+				if 내 뉴런이 Spike 했음:
+					뉴런:
+						내 뉴런의 Spike Time을 내부에 기록함
+						Spike Indicator(1-bit)를 toggle해서 내가 spoke한 것을 알림
+						그리고 Spike Time을 전달함
+					컨트롤러:
+						neuron index를 ${전략}에 맞춰서 이동하면서 Spike Indicator Reg를 확인함 // ${전략}: 현재 -> 단순 1씩 증가
+						if Spike Indicator가 High:
+							Spike Decoder를 통해 어떤 뉴런들에게 이 사실을 Propagate해야 하는지 확인함
+							if 모두 Column 내부 뉴런으로 전달 가능:
+								Spike Decoder: (Forward/Back)Propagation Reg의 뉴런들을 Toggle함
+								그리고 Spike한 Neuron에서 전달받은 Spike Time을 Controller의 Spike Time으로 설정함
+								한 클럭동안 유지하고, 다음 neuron index로 ${전략}에 맞춰서 이동 // ${전략}: 현재 -> 단순 1씩 증가
+							else (하나라도 외부 Column으로 전달해야함):
+								내부 전달 가능한 Neuron들은 (Forward/Back)Propagation Reg를 Toggle함
+								그리고 외부로 가야하는 뉴런 정보를 Mini-Column 정보와 함께 외부 컨트롤러로 보냄
+						else(Spike Indicator가 Low):
+							다음 neuron index로 ${전략}에 맞춰서 이동 // ${전략}: 현재 -> 단순 1씩 증가
+					휴식기 가짐
+				else(내 뉴런이 Spike 안함):
+					계산하고 끝남
+			else if Back Propagation:
+				뉴런: N번 뉴런이 해당 시간에 Spike 했음을 저장함 (최대 3번까지)
+				그리고 Learning Module:
+					${Learning Algorithm}에 맞춰 Synaptic Weight를 업데이트함 // ${Learning Algorithm}: 현재 -> STDP Learning
+			else(아무것도 안 올 경우):
+				대기
+		else if 뉴런으로 초기 설정값이 들어옴:
+			가야하는 곳으로 설정 값 전달함(Weight, Param)

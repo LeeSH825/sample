@@ -1,0 +1,24 @@
+{
+    "type": "weight",
+    "target_column": 0,
+    "target_neuron": 1,
+    "data": 1.23,
+    "data_block": [
+        {
+            "forward": [
+                {"0": []}
+            ]
+        },
+        {
+            "backward": [
+                {"0": []}
+            ]
+        },
+        {
+            "md_block": [
+                0
+            ]
+        }
+    ]
+}
+
