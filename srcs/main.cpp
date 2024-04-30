@@ -1,71 +1,238 @@
-#ifndef MAIN_CPP
-# define MAIN_CPP
 #include <iostream>
-#include <fstream>
 #include <string>
+#include <filesystem>
+#include "../includes/rapidjson/document.h"
+#include "../includes/rapidjson/istreamwrapper.h"
+#include <fstream>
+#include <sstream>
+#include <vector>
 
-#include "./controller.cpp"
-#include "./neuron.cpp"
+#include "../includes/controller.h"
+#include "../includes/neuron.h"
 
-#endif
+namespace fs = std::filesystem;
 
-using namespace std;
+int main()
+{
+	std::cout << "MARVELS: SNN Simulator" << std::endl;
+	
+	std::string directory;
+	std::cout << "Enter the file directory: ";
+	// std::getline(std::cin, directory);
+	
+	// DBG
+	directory = "../data";
 
-int main() {
-	Controller MC_sample_controller;
+	fs::path filePath(directory);
 
-	string init_MsgBase = "init_message_";
-	string init_MsgExt = ".txt";
-	int init_Msg_start = 0;
-	int init_Msg_end = 1;
+	controller _controller;
 
-	// 파일 파싱
-	for(int i = init_Msg_start; i < init_Msg_end; i++) {
-		string filename = init_MsgBase + std::to_string(i) + init_MsgExt;
-		ifstream file(filename);
-		if (!file.is_open()) {
-			cout << filename << "파일 열기 실패";
-			continue;
-		}
-		else {
-			cout << filename << "파일 열기 성공";
-			s_initialization_protocol message;
-			string single_line;
-
-			// 데이터 받기
-			getline(file, single_line);
-			message.type = std::stoi(single_line);
-			getline(file, single_line);
-			message.target_column = std::stoi(single_line);
-			getline(file, single_line);
-			message.target_neuron = std::stoi(single_line);
-			getline(file, single_line);
-			message.data = std::stoi(single_line);
+	for (const auto& entry : fs::directory_iterator(filePath))
+	{
+		if (entry.is_regular_file())
+		{
+			std::string filename = entry.path().filename().string();
+			std::string prefix = "message";
+			std::string type = "init"/* TODO: Extract the type from the filename */;
+			// std::string number = "0"/* TODO: Extract the number from the filename */;
 			
-			std::cout << std::endl << message.type << "|" << message.target_column << "|" << message.target_neuron << "|" << message.data << std::endl;
-			std::cout << "MD Block:" << std::endl;
+			if (filename.find(prefix) == 0 && filename.find(type) != std::string::npos != std::string::npos && filename.find(".json") != std::string::npos)
+			{
+				// Process the file
+				std::cout << std::endl << "Found file: " << filename << std::endl;
 
-			// MD Block 채워넣기
-			for (int j=0; j < MAX_NUM_OF_NEURON; j++) {
-				if (getline(file, single_line)) {	// 있으면
-					message.data_block.md_block.is_MD[j] = stoi(single_line);
-					std::cout << message.data_block.md_block.is_MD[j] << std::endl;
+				// Read the JSON file
+				std::ifstream file(entry.path());
+				if (file.is_open())
+				{
+					std::stringstream buffer;
+					buffer << file.rdbuf();
+					std::string jsonStr = buffer.str();
+
+					// Parse the JSON string
+					rapidjson::Document document;
+					document.Parse(jsonStr.c_str());
+
+					// Check if parsing was successful
+					if (!document.HasParseError())
+					{
+						// TODO: Process the JSON data
+						// Example: Accessing a value from the JSON document
+						if (document.HasMember("type"))
+						{
+							// Target Column
+							const rapidjson::Value& column = document["target_column"];
+							int columnValue;
+							if (column.IsInt()) {
+								columnValue = column.GetInt();
+							} else {
+								std::cout << "Invalid value for target_column" << std::endl;
+								columnValue = 0;
+							}
+
+							// Target Neuron
+							const rapidjson::Value& neuron = document["target_neuron"];
+							int neuronValue;
+							if (neuron.IsInt()) {
+								neuronValue = neuron.GetInt();
+							} else {
+								std::cout << "Invalid value for target_neuron" << std::endl;
+								neuronValue = 0;
+							}
+
+							// Data
+							const rapidjson::Value& data = document["data"];
+							double weightValue;
+							int spike_time;
+							if (data.IsDouble()) {
+								weightValue = data.GetDouble();
+							}
+							else if (data.IsInt()) {
+								spike_time = data.GetInt();
+							}
+							else {
+								std::cout << "Invalid value for data" << std::endl;
+								weightValue = 0;
+								spike_time = 0;
+							}
+
+							// Data Block
+							const rapidjson::Value& dataBlock = document["data_block"];
+							int detailValue;
+							if (dataBlock.IsObject()) {
+								const rapidjson::Value& detail = dataBlock["detail"];
+								if (detail.IsInt()) {
+									detailValue = detail.GetInt();
+								} else {
+									std::cout << "Invalid value for detail" << std::endl;
+									detailValue = 0;
+								}
+							} else {
+								std::cout << "Invalid value for data_block" << std::endl;
+								detailValue = 0;
+							}
+
+							// Type
+							const rapidjson::Value& type = document["type"];
+							if (type.IsString()) {
+								std::string typeStr = type.GetString();
+								std::cout << "type: " << typeStr << std::endl;
+								if (typeStr == "weight") {
+									std::cout << "target_column: " << columnValue << " target_neuron: " << neuronValue << " detail: " << detailValue << " weight: " << weightValue << std::endl;
+									_controller.setWeight(columnValue, neuronValue, detailValue, weightValue);
+								}
+								else if (typeStr == "block") {
+									// Forward
+									const rapidjson::Value& forward = dataBlock["forward"];
+									if (forward.IsObject()) {
+										for (int i = 0; i <= NUM_MAX_NEURON; i++) {
+											std::string keyName = std::to_string(i);
+											if (forward.HasMember(keyName.c_str())) {
+												const rapidjson::Value& value = forward[keyName.c_str()];
+												// Process the array of integer values
+												if (value.IsArray()) {
+													std::vector<int> block;
+													for (rapidjson::SizeType i = 0; i < value.Size(); i++) {
+														if (value[i].IsInt()) {
+															block.push_back(value[i].GetInt());
+															// TODO: Process the integer value
+															// std::cout << "Integer value: " << intValue << std::endl;
+														}
+													}
+													_controller.setForwardTableRow(columnValue, i, block);
+													std::vector<int>().swap(block);
+												} else {
+													std::cout << "Invalid value for forward name" << std::endl;
+												}
+											}
+										}
+									}
+									else
+									{
+										std::cout << "Invalid value for forward" << std::endl;
+									}
+
+									// Backward
+									const rapidjson::Value& backward = dataBlock["backward"];
+									if (backward.IsObject()) {
+										for (int i = 0; i <= NUM_MAX_NEURON; i++) {
+											std::string keyName = std::to_string(i);
+											if (backward.HasMember(keyName.c_str())) {
+												const rapidjson::Value& value_back = backward[keyName.c_str()];
+												// Process the array of integer values
+												if (value_back.IsArray()) {
+													std::vector<int> block_back;
+													for (rapidjson::SizeType i = 0; i < value_back.Size(); i++) {
+														if (value_back[i].IsInt()) {
+															block_back.push_back(value_back[i].GetInt());
+															// TODO: Process the integer value
+															// std::cout << "Integer value: " << intValue << std::endl;
+														}
+													}
+													_controller.setBackwardTableRow(columnValue, i, block_back);
+													std::vector<int>().swap(block_back);
+												} else {
+													std::cout << "Invalid value for forward name" << std::endl;
+												}
+											}
+										}
+									}
+									else
+									{
+										std::cout << "Invalid value for forward" << std::endl;
+									}
+
+									// md_block
+									const rapidjson::Value& mdBlock = dataBlock["md_block"];
+									if (mdBlock.IsArray()) {
+										std::vector<int> block_md;
+										for (rapidjson::SizeType i = 0; i < mdBlock.Size(); i++) {
+											const rapidjson::Value& value = mdBlock[i];
+											// Process the array of integer values
+											if (value.IsInt()) {
+												block_md.push_back(value.GetInt());
+											}
+										}
+										_controller.setMDBlock(columnValue, block_md);
+									} else {
+										std::cout << "Invalid value for md_block" << std::endl;
+									}
+									// DBG
+									std::cout << "ForwardTable:" << std::endl;
+									_controller.checkForwardTable(0);
+									std::cout << "BackwardTable:" << std::endl;
+									_controller.checkBackwardTable(0);
+									std::cout << "MDTable:" << std::endl;
+									_controller.checkMDTable(0);
+
+								}
+								else if (typeStr == "param"){
+									std::cout << "target_column: " << columnValue << " target_neuron: " << neuronValue << " detail: " << detailValue << " param_value: " << weightValue << std::endl;
+									_controller.setParam(columnValue, neuronValue, detailValue, weightValue);
+								}
+								else if (typeStr == "spike") {		// spike
+									// Code for other string case
+									_controller.sendSpike(columnValue, neuronValue, spike_time);
+								}
+								else {
+									std::cout << "Wrong Type";
+								}
+							}
+						}
+						else { std::cout << "no weight"; }
+					}
+					else
+					{
+						std::cout << "Failed to parse JSON file: " << entry.path() << std::endl;
+					}
 				}
-				else {
-					break;
+				else
+				{
+					std::cout << "Failed to open JSON file: " << entry.path() << std::endl;
 				}
 			}
-			// Controller로 전달
-			MC_sample_controller.inputDataFromRAM(message);
 		}
 	}
-	// 모듈 초기화 끝
-	///////////////////
-
-	// 첫 Spike
-	// spike message => 
-	// MC_sample_controller.inputDataFromRAM(spike_message);
-
-
-
+	
+	return 0;
 }

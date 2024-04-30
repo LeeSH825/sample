@@ -1,87 +1,67 @@
-#ifndef NEURON_CPP
-# define NEURON_CPP
-#include "./learning_module.cpp"
+#include "../includes/neuron.h"
 
-#define FORWARD 0
-#define BACKWARD 1
+neuron::neuron(/* args */) {
+	this->membrane_potential = 0.0;
+	this->threshold = 9.02;
+	this->axon_delay = 1.0;
+	this->ref_time = 1.0;
 
-#define MAX_NEURON 100
-#define MAX_SAVE 3
-
-#define THRESHOLD 100
-#endif
-
-typedef struct t_neural_protocol {
-	int spike_time;
-	int spike_neuron;
-	int type;		// Forward, Backward
-} s_neural_protocol;
-
-class Neuron {
-	private:
-		s_neural_protocol spike_data;
-		Learning_Module STDP_Learning_Module;
-		int received_spike_time;
-
-		int last_spiked_time;
-
-		int my_spike_time[MAX_SAVE];
-		int my_spike_time_idx;
-		int other_spike_time[MAX_NEURON][MAX_SAVE];			
-		int other_spike_time_idx[MAX_NEURON];
-		int weight;
-		void inc_spike_idx(int idx) { if (idx == MAX_SAVE) {idx == 0;} else { idx = idx+1; } }
-
-		int membranePotential;
-		int calcMembranePotential();
-		int neuronModel_calc(int time);
-		void recordSpikeTime();
-
-		void setSpikeIndicator();
-		int SpikeIndicator;
-	public:
-		void input_Spike_time(s_neural_protocol data) { this->spike_data = data; this-> received_spike_time = data.spike_time; this->action_neuron();};
-		void action_neuron();
-		int calcMembranePotential();
-		int checkSpikeIndicator();
-};
-
-void Neuron::action_neuron() {
-	// Spike 시간 기록
-	other_spike_time[this->spike_data.spike_neuron][other_spike_time_idx[this->spike_data.spike_neuron]];	
-	inc_spike_idx(other_spike_time_idx[spike_data.spike_neuron]);
-	int new_weight = STDP_Learning_Module.calcWeight(this->my_spike_time, this->other_spike_time[this->spike_data.spike_neuron]);
-	this->weight = new_weight;		// weight 갱신
-	int is_spike = calcMembranePotential();
-	if (this->spike_data.type == FORWARD) {
-		
+	for (int i = 0; i < NUM_POST_NEURON; i++) {
+		this->weight[i] = 0.0;
+	}
+	for (int i = 0; i < NUM_NEURON_CONNECTION; i++) {
+		for (int j = 0; j < MAX_SAVE_TIME; j++) {
+			this->spike_time[i][j] = 0;
+		}
+		this->spike_idx[i] = 0;
+	}
+	for (int i = 0; i < MAX_SAVE_TIME; i++) {
+		my_spike_time[i] = 0;
 	}
 }
 
-int Neuron::calcMembranePotential() {
-	this->membranePotential += this->neuronModel_calc(this->spike_data.spike_time);
-	if (this->membranePotential >= THRESHOLD) {		// Threshold를 넘기면
-		recordSpikeTime();
-		setSpikeIndicator();
+neuron::~neuron() {
+}
+
+int neuron::increaseSpikeIdx(int idx) {
+	std::cout << "DBG: spike_idx: " << idx << std::endl;
+	if (idx == MAX_SAVE_TIME - 1) {
+		return 0;
+	}
+	else {
+		return idx + 1;
 	}
 }
 
-int Neuron::neuronModel_calc(int time) {
-	return (this->last_spiked_time - time);
+int neuron::getSpike(int target_neuron, int spike_time, int type) {
+	std::cout << " spike_time: " << spike_time << std::endl;
+	this->spike_time[target_neuron][spike_idx[target_neuron]] = spike_time;	// record spike time 
+	this->spike_idx[target_neuron] = this->increaseSpikeIdx(this->spike_idx[target_neuron]);
+	this->weight[target_neuron] = exp_STDP_learning_module.updateWeight(my_spike_time, this->spike_time[target_neuron]);
+	std::cout << "neuron: " << target_neuron << "weight: " << this->weight[target_neuron] << std::endl;
+
+	if (type == FORWARD) {
+		if (this->isSpike(target_neuron)) {
+			this->membrane_potential = 0;
+			return this->spike(spike_time);
+		}
+		else {
+			this->membrane_potential = this->membrane_potential + weight[target_neuron];
+		}
+	}
+	return 0;
 }
 
-void Neuron::recordSpikeTime() {
-	this->my_spike_time[this->my_spike_time_idx] = this->spike_data.spike_time;
-	inc_spike_idx(my_spike_time_idx);
+int neuron::spike(int spike_time) {
+	this->my_spike_time[my_spike_idx] = spike_time + this->axon_delay;
+	this->my_spike_idx = this->increaseSpikeIdx(this->my_spike_idx);
+	return spike_time + this->axon_delay;
 }
 
-void Neuron::setSpikeIndicator() {
-	this->SpikeIndicator = 1;
-}
-
-int Neuron::checkSpikeIndicator() {
-	if (this->SpikeIndicator == 1) {
-		this->SpikeIndicator = 0;
+int neuron::isSpike(int target_neuron) {
+	float next_mem_potential = this->membrane_potential + weight[target_neuron];
+	if (next_mem_potential > this->threshold) {
+		std::cout << "!!!!Spiked: " << target_neuron << std::endl << std::endl;
 		return 1;
 	}
 	else {

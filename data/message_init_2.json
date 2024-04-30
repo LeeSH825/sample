@@ -1,0 +1,20 @@
+{
+    "type": "param",
+    "target_column": 0,
+    "target_neuron": 1,
+    "data": 1200.0,
+    "data_block": {
+		"detail" :  784,
+        "forward": {
+            "0": []
+        }
+        ,
+        "backward": {
+            "0": []
+        },
+        "md_block": [
+                0
+        ]
+    }
+}
+

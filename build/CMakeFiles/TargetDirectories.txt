@@ -1,0 +1,3 @@
+/home/xynus/snn/build/CMakeFiles/MARVELS.dir
+/home/xynus/snn/build/CMakeFiles/edit_cache.dir
+/home/xynus/snn/build/CMakeFiles/rebuild_cache.dir

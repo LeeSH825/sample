@@ -1,199 +1,134 @@
-#ifndef CONTROLLER_CPP
-# define CONTROLLER_CPP
-#include <iostream>
-#include <string>
-#include "./neuron.cpp"
+#include "../includes/controller.h"
 
-#define MAX_NUM_OF_NEURON 100
-
-#define SPIKE 0
-#define PARAM 1
-
-#define SOMA 0
-#define SYNAPSE 1
-#define LEARNING_MODULE 2
-
-#define WEIGHT 0
-#define PARAM 1
-#define BLOCK 2
-#define SPIKE 3
-
-#endif
-#include <random>
-
-typedef struct t_connection_table {
-	int control_bit[MAX_NUM_OF_NEURON];
-	int src[MAX_NUM_OF_NEURON];
-	int dst[MAX_NUM_OF_NEURON];
-} s_connection_table;
-
-typedef struct t_MD_block {
-	int is_MD[MAX_NUM_OF_NEURON];
-} s_MD_block;
-
-typedef struct t_BLOCK {
-	s_connection_table forward;
-	s_connection_table backward;
-	s_MD_block md_block;
-} s_BLOCK;
-
-typedef struct t_column_internal_protocol {
-	int spike_or_param;
-	int MD_or_ordinary;
-	int param_destination;
-	int addr;
-	int data;
-} s_column_internal_protocol;
-
-typedef struct t_initialization_protocol {
-	int type;	// Weight, or param or Block or spike
-	int target_column;
-	int target_neuron;
-	int data;
-	s_BLOCK data_block;
-} s_initialization_protocol;
-
-class Initializaition_Decoder_Inside_Column {
-	private:
-		s_initialization_protocol initializaition_data;
-		s_BLOCK reference_table;
-		int if_MD(char num_of_neuron);
-	public:
-		s_column_internal_protocol inputDataFromRAM(s_initialization_protocol data){ this->initializaition_data = data; 
-		std::cout << "type: " << initializaition_data.type << "MD node: " << initializaition_data.data_block.md_block.is_MD[1] << std::endl; 
-		this->outputDataFromRAM(); };
-		s_column_internal_protocol outputDataFromRAM();
-
-};
-
-int Initializaition_Decoder_Inside_Column::if_MD(char num_of_neuron){		// MD 뉴런인지 찾기
-	for(int i=0; i<MAX_NUM_OF_NEURON; i++){
-		if (this->reference_table.md_block.is_MD[i] == num_of_neuron){
-			return 1;
+controller::controller(/* args */) {
+	for (int col_idx = 0; col_idx < NUM_MAX_COLUMN; col_idx++) {
+		for (int i = 0; i < NUM_MAX_NEURON; i++) {
+			for (int j = 0; j < NUM_MAX_NEURON; j++) {
+				this->_forward_table[col_idx].neuron[i][j] = 0;
+			}
 		}
+	}
+	for (int col_idx = 0; col_idx < NUM_MAX_COLUMN; col_idx++) {
+		for (int i = 0; i < NUM_MAX_NEURON; i++) {
+			for (int j = 0; j < NUM_MAX_NEURON; j++) {
+				this->_backward_table[col_idx].neuron[i][j] = 0;
+			}
+		}
+	}
+	for (int col_idx = 0; col_idx < NUM_MAX_COLUMN; col_idx++) {
+		for (int i = 0; i < NUM_MAX_NEURON; i++) {
+			this->_md_block[col_idx].neuron[i] = 0;
+		}
+	}
+
+	for (int i=0; i < NUM_MAX_NEURON; i++) {
+		this->spike_indicator[i] = 0;
+	}
+}
+
+controller::~controller() {
+}
+
+int controller::setWeight(int target_column, int target_neuron, int post_neuron, float weight) {
+	neurons[target_column][target_neuron].setWeight(post_neuron, weight);
+	return 1;
+}
+
+int controller::setParam(int target_column, int target_neuron, int type, float value) {
+	if (type == THRESHOLD) {
+		neurons[target_column][target_neuron].setThreshold(value);
+		return 1;
+	}
+	else if (type == AXIONAL_DELAY) {
+		neurons[target_column][target_neuron].setAxonDelay(value);
+		return 1;
+	}
+	else if (type == REFRACTORY_TIME) {
+		neurons[target_column][target_neuron].setRefTime(value);
+		return 1;
 	}
 	return 0;
 }
 
-s_column_internal_protocol Initializaition_Decoder_Inside_Column::outputDataFromRAM() {
-		if (this->initializaition_data.type == BLOCK){	// Table 초기화
-			this->reference_table = this->initializaition_data.data_block;
-			std::cout << "block:" << reference_table.md_block.is_MD[1] << std::endl;
-			s_column_internal_protocol ret;
-			return ret; 	// return null (단순 초기화이기 때문에 전달할 필요 없음)
-		}
-		else if (this->initializaition_data.type == WEIGHT){	// Weight 초기화
-			s_column_internal_protocol ret;
-			// parma이라고 알려줌
-			ret.spike_or_param = PARAM;
-			// Destination도 Synapse 쪽이라고 알려줘야??
-			ret.param_destination = SYNAPSE;
-			// 전달해야 하는 뉴런 주소 설정
-			ret.addr = this->initializaition_data.target_neuron;
-
-			// MD면 그대로, Ordinary면 LSB만 랜덤하게
-			if (this->if_MD(this->initializaition_data.target_neuron)) {
-					// MD면 그대로
-				ret.data = this->initializaition_data.data;
-				std::cout << "weight: " << ret.data << std::endl;
-			}
-			else {
-					// Ordinary면 랜덤하게
-				std::random_device rd;
-				std::mt19937 mt(rd());
-				std::uniform_int_distribution<int> dist(0,99);
-				ret.data = dist(mt);
-				std::cout << "weight: " << ret.data << std::endl;
-			}
-			return ret;
-		}
-		else if (this->initializaition_data.type == PARAM) {
-			s_column_internal_protocol ret;
-			ret.spike_or_param = PARAM;
-			ret.param_destination = SOMA;	// or learning module?
-			ret.addr = this->initializaition_data.target_neuron;
-			ret.data = this->initializaition_data.data;
-			return ret;
-		}
-		else if (this->initializaition_data.type == SPIKE) {
-			s_column_internal_protocol ret;
-			ret.spike_or_param = SPIKE;
-			ret.param_destination = SOMA;
-			ret.addr = this->initializaition_data.target_neuron;
-			ret.data = this->initializaition_data.data;	// 여기선 Spike time data
-			return ret;
-		}
+int controller::setForwardTableRow(int target_column, int src, std::vector<int> v) {
+	for (int idx = 0; idx < v.size(); idx++) {
+		this->_forward_table[target_column].neuron[src][v[idx]] = 1;
+	}
+	return 1;
 }
 
-typedef struct t_array_block {
-	int data[100];
-} s_array_block;
+int controller::setBackwardTableRow(int target_column, int src, std::vector<int> v) {
+	for (int idx = 0; idx < v.size(); idx++) {
+		this->_backward_table[target_column].neuron[src][v[idx]] = 1;
+	}
+	return 1;
+}
 
-class Spike_Decoder_Inside_Column {
-	private:
-		int reference_table[100];
-	public:
-		s_array_block checkForward(int num_of_neuron);
-		s_array_block checkBackward(int num_of_neuron);
-};
+int controller::setMDBlock(int target_column, std::vector<int> v) {
+	for (int idx = 0; idx < v.size(); idx++) {
+		this->_md_block[target_column].neuron[v[idx]] = 1;
+	}
+	return 1;
+}
 
-s_array_block Spike_Decoder_Inside_Column::checkForward(int num_of_neuron) {
-	s_array_block propagation_table;
-	for (int i=0; i < MAX_NEURON; i++) {
-		if (reference_table[i] == 1) {
-			propagation_table.data[i] = 1;
+
+int controller::sendSpike(int target_column, int target_neuron, int spike_time) {
+	
+	for (int post_neuron = 0; post_neuron < NUM_MAX_NEURON; post_neuron++) {			// Forward Propagation
+		if (this->_forward_table[target_column].neuron[target_neuron][post_neuron] == 1) {
+			std::cout << "Forward Spike to " << post_neuron << std::endl;
+			spike_indicator[target_neuron] = neurons[target_column][post_neuron].getSpike(target_neuron, spike_time, FORWARD);
 		}
 	}
-	return propagation_table;
-}
-
-s_array_block Spike_Decoder_Inside_Column::checkBackward(int num_of_neuron) {
-	s_array_block propagation_table;
-	for (int i=0; i < MAX_NEURON; i++) {
-		if (reference_table[i] == 1) {
-			propagation_table.data[i] = 1;
+	for (int pre_neuron = 0; pre_neuron < NUM_MAX_NEURON; pre_neuron++) {				// Backward Propagation
+		if (this->_backward_table[target_column].neuron[target_neuron][pre_neuron] == 1) {
+			std::cout << "Backward Spike to " << pre_neuron << std::endl;
+			neurons[target_column][pre_neuron].getSpike(target_neuron, spike_time, BACKWARD);
 		}
 	}
-	return propagation_table;
-}
 
-
-class Controller {
-	private:
-		char spike_indicator[MAX_NUM_OF_NEURON];
-		s_initialization_protocol initialization_data;
-		Initializaition_Decoder_Inside_Column init_decoder;
-		Neuron neuron[100];
-		Spike_Decoder_Inside_Column Spike_Decoder;
-		int SpikeIndicator_idx;
-		int ForwardPropagationReg[100];
-		int BackwardPropagationReg[100];
-	public:
-		void inputSpikeOndicator(int num_of_neuron){ this->spike_indicator[num_of_neuron] = 1; };
-
-		void inputDataFromRAM(s_initialization_protocol data){ this->initialization_data = data; outputDataFromRAM(); };
-		void outputDataFromRAM();
-		void checkSpikeofNeuron();
-
-};
-
-void Controller::outputDataFromRAM() {	
-	s_column_internal_protocol internal_message;
-	internal_message = init_decoder.inputDataFromRAM(this->initialization_data);
-	if (internal_message.spike_or_param == SPIKE) {
-		std::strcpy(ForwardPropagationReg, Spike_Decoder.checkForward(internal_message.addr).data);	//internal message에 있는 neuron의 주소를 보고 forward propagation register 업데이느
-	}
-}
-
-void Controller::checkSpikeofNeuron() {
-	while (1){
-		if (neuron[1].checkSpikeIndicator()) {	// SPike 했다면
-			ForwardPropagationReg = *Spike_Decoder.checkForward(neuron[1].checkSpikeIndicator());	// Forward Reg 설정
-			BackwardPropagationReg = *Spike_Decoder.checkForward(neuron[1].checkSpikeIndicator());	// Backward Reg 설정
-			// 한 클럭 기다리고,
+	for (int idx = 0; idx < NUM_MAX_NEURON; idx++) {
+		if (spike_indicator[idx] != 0) {
+			int spike_time = spike_indicator[idx];
+			spike_indicator[idx] = 0;
+			sendSpike(target_column, idx, spike_time);
+			
 		}
-		increaseIDX(SpikeIndicator_idx);
 	}
+
+	return 1;
 }
 
 
+// DBG
+void controller::checkForwardTable(int target_column) {
+	for (int i = 0; i < NUM_MAX_NEURON; i++) {
+		for (int j = 0; j < NUM_MAX_NEURON; j++) {
+			std::cout << static_cast<int>(this->_forward_table[target_column].neuron[i][j]);
+		}
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+	return ;
+}
+
+void controller::checkBackwardTable(int target_column) {
+	for (int i = 0; i < NUM_MAX_NEURON; i++) {
+		for (int j = 0; j < NUM_MAX_NEURON; j++) {
+			std::cout << static_cast<int>(this->_backward_table[target_column].neuron[i][j]);
+		}
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+	return ;
+}
+
+void controller::checkMDTable(int target_column) {
+	for (int i = 0; i < NUM_MAX_NEURON; i++) {
+		std::cout << this->_md_block[target_column].neuron[i];
+		std::cout << static_cast<int>(this->_md_block[target_column].neuron[i]);
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+	return ;
+}

@@ -1,16 +1,24 @@
-class Learning_Module {
-	private:
-		char learning_Table[100];
-	public:
-		int calcWeight(int pre_spike_table[3], int post_spike_table[3]);
-};
+#include "../includes/learning_module.h"
 
-int Learning_Module::calcWeight(int pre_sike_table[3], int post_spike_table[3]){
-	int new_weight = 1;
-	for(int i=0; i<3; i++) {
-		for (int j=0; j < 3; j++){
-			new_weight *= pre_sike_table[i] * post_spike_table[j];
+learning_module::learning_module(/* args */)
+{
+}
+
+learning_module::~learning_module()
+{
+}
+
+float learning_module::updateWeight(int spike_time_1[MAX_SAVE_TIME], int spike_time_2[MAX_SAVE_TIME]) {
+	float A_PRE = 1.0;
+	float A_POST = 1.0;
+	float T_PRE = 10.0;
+	float T_POST = 10.0;
+	float delta_weight = 0;
+	for (int i=0; i < MAX_SAVE_TIME; i++) {
+		for (int j=0; j < MAX_SAVE_TIME; j++) {
+			float delta = spike_time_2[j] - spike_time_1[i];
+			delta_weight += A_PRE * std::exp(delta/T_PRE) - A_POST * std::exp(-delta/T_POST);
 		}
 	}
-	return new_weight;
+	return delta_weight;
 }

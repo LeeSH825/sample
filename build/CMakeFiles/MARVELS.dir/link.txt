@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/MARVELS.dir/home/xynus/snn/srcs/main.cpp.o CMakeFiles/MARVELS.dir/home/xynus/snn/srcs/controller.cpp.o CMakeFiles/MARVELS.dir/home/xynus/snn/srcs/neuron.cpp.o CMakeFiles/MARVELS.dir/home/xynus/snn/srcs/learning_module.cpp.o -o MARVELS 

@@ -1,0 +1,27 @@
+{
+    "type": "weight",	// weight, param, block, spike
+    "target_column": 0,
+    "target_neuron": 0,
+    "data": 1.23,
+    "data_block": [
+		{
+			"detail" :  784		// for weight => arrive neuron's numbers
+								// for parma => 0: v_potential ...
+		},
+        {
+            "forward": [
+                {"0": []}
+            ]
+        },
+        {
+            "backward": [
+                {"0": []}
+            ]
+        },
+        {
+            "md_block": [
+                0
+            ]
+        }
+    ]
+}

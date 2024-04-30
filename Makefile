@@ -3,7 +3,7 @@ NAME = MARVELS
 CC = g++
 CFLAG = 
 
-RM = RM
+RM = rm
 RMFLAG = 
 
 INCLUDES = ./include/rapidjson

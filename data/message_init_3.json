@@ -1,0 +1,20 @@
+{
+    "type": "spike",
+    "target_column": 0,
+    "target_neuron": 0,
+    "data": 12,
+    "data_block": {
+		"detail" :  784,
+        "forward": {
+            "0": []
+        }
+        ,
+        "backward": {
+            "0": []
+        },
+        "md_block": [
+                0
+        ]
+    }
+}
+
